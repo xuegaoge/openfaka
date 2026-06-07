@@ -5,7 +5,7 @@ using OpenFaka.Core.Interfaces;
 
 namespace OpenFaka.Infrastructure.Services;
 
-public class RedisCacheService : ICacheService, IDisposable
+public class RedisCacheService : ICacheService
 {
     private readonly RedisClient _redis;
     private readonly ILogger<RedisCacheService> _logger;
@@ -125,9 +125,18 @@ public class RedisCacheService : ICacheService, IDisposable
     {
         try
         {
-            var keys = _redis.Keys($"{prefix}*");
-            if (keys != null && keys.Length > 0)
-                _redis.Del(keys);
+            long cursor = 0;
+            var keysToDelete = new List<string>();
+            do
+            {
+                var result = _redis.Scan(cursor, $"{prefix}*", 100, null);
+                cursor = result.cursor;
+                if (result.items?.Length > 0)
+                    keysToDelete.AddRange(result.items);
+            } while (cursor != 0);
+
+            if (keysToDelete.Count > 0)
+                _redis.Del(keysToDelete.ToArray());
         }
         catch (Exception ex)
         {
@@ -136,8 +145,105 @@ public class RedisCacheService : ICacheService, IDisposable
         return Task.CompletedTask;
     }
 
-    public void Dispose()
+    public async Task<string> GetOrSetAsync(string key, Func<Task<string>> factory, int expireSeconds = 300)
     {
-        _redis?.Dispose();
+        var cached = await GetAsync(key);
+        if (!string.IsNullOrEmpty(cached))
+            return cached;
+
+        var lockKey = $"lock:{key}";
+        var lockValue = Guid.NewGuid().ToString("N");
+        var lockAcquired = false;
+        try
+        {
+            lockAcquired = await SetNxAsync(lockKey, lockValue, 30);
+            if (lockAcquired)
+            {
+                cached = await GetAsync(key);
+                if (!string.IsNullOrEmpty(cached))
+                    return cached;
+
+                var value = await factory();
+                if (!string.IsNullOrEmpty(value))
+                    await SetAsync(key, value, expireSeconds);
+                return value;
+            }
+
+            await Task.Delay(100);
+            cached = await GetAsync(key);
+            if (!string.IsNullOrEmpty(cached))
+                return cached;
+
+            return await factory();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis GetOrSet failed for key: {Key}", key);
+            return await factory();
+        }
+        finally
+        {
+            if (lockAcquired)
+                ReleaseLock(lockKey, lockValue);
+        }
+    }
+
+    public async Task<T> GetOrSetAsync<T>(string key, Func<Task<T>> factory, int expireSeconds = 300) where T : class
+    {
+        var cached = await GetAsync<T>(key);
+        if (cached != null)
+            return cached;
+
+        var lockKey = $"lock:{key}";
+        var lockValue = Guid.NewGuid().ToString("N");
+        var lockAcquired = false;
+        try
+        {
+            lockAcquired = await SetNxAsync(lockKey, lockValue, 30);
+            if (lockAcquired)
+            {
+                cached = await GetAsync<T>(key);
+                if (cached != null)
+                    return cached;
+
+                var value = await factory();
+                if (value != null)
+                    await SetAsync(key, value, expireSeconds);
+                return value;
+            }
+
+            await Task.Delay(100);
+            cached = await GetAsync<T>(key);
+            if (cached != null)
+                return cached;
+
+            return await factory();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis GetOrSet failed for key: {Key}", key);
+            return await factory();
+        }
+        finally
+        {
+            if (lockAcquired)
+                ReleaseLock(lockKey, lockValue);
+        }
+    }
+
+    private void ReleaseLock(string lockKey, string lockValue)
+    {
+        try
+        {
+            // 仅当锁仍属于当前持有者时才删除，防止误删其他线程获得的锁
+            _redis.Eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                new[] { lockKey },
+                new[] { lockValue });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis lock release failed for key: {LockKey}", lockKey);
+        }
     }
 }

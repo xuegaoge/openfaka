@@ -61,7 +61,7 @@ var redisConfig = config.GetSection("Redis");
 var redisEnabled = redisConfig.GetValue<bool?>("Enabled") ?? true;
 var redisConnectionString = redisConfig["ConnectionString"] ?? "localhost:6379";
 
-ICacheService cacheService;
+var redisConnected = false;
 if (redisEnabled)
 {
     try
@@ -74,8 +74,7 @@ if (redisEnabled)
             builder.Services.AddSingleton(redisClient);
             builder.Services.AddSingleton<ICacheService, RedisCacheService>();
             Console.WriteLine($"[Redis] Connected to {redisConnectionString}, ping={pingResult}");
-            cacheService = null; // will be resolved via DI
-            goto skipFallback;
+            redisConnected = true;
         }
     }
     catch (Exception ex)
@@ -84,11 +83,12 @@ if (redisEnabled)
     }
 }
 
-// 降级：使用内存缓存
-builder.Services.AddSingleton<ICacheService, InMemoryCacheService>();
-Console.WriteLine("[Redis] Using InMemoryCache (Redis disabled or unreachable)");
-
-skipFallback:
+if (!redisConnected)
+{
+    // 降级：使用内存缓存
+    builder.Services.AddSingleton<ICacheService, InMemoryCacheService>();
+    Console.WriteLine("[Redis] Using InMemoryCache (Redis disabled or unreachable)");
+}
 // ============ JWT Authentication ============
 var jwtSection = config.GetSection("Jwt");
 var secretKey = jwtSection["SecretKey"];

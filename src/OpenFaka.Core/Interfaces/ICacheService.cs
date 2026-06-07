@@ -18,4 +18,16 @@ public interface ICacheService
     /// 按前缀删除缓存（Redis: SCAN + DEL，内存: 遍历删除）
     /// </summary>
     Task RemoveByPrefixAsync(string prefix);
+
+    /// <summary>
+    /// 获取缓存；不存在时使用 factory 重建并写入缓存。
+    /// 内部使用互斥锁防止热 key 缓存击穿。
+    /// </summary>
+    Task<string> GetOrSetAsync(string key, Func<Task<string>> factory, int expireSeconds = 300);
+
+    /// <summary>
+    /// 获取缓存；不存在时使用 factory 重建并写入缓存。
+    /// 内部使用互斥锁防止热 key 缓存击穿。
+    /// </summary>
+    Task<T> GetOrSetAsync<T>(string key, Func<Task<T>> factory, int expireSeconds = 300) where T : class;
 }

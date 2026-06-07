@@ -12,6 +12,9 @@ namespace OpenFaka.Infrastructure.Services;
 public class InMemoryCacheService : ICacheService
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _store = new();
+    // 按 key 缓存 SemaphoreSlim 以在内存模式下实现同 key 互斥。
+    // 理论上会随唯一 key 数量增长，但 OpenFaka 的 key 空间有界（配置/分类/商品数），可接受。
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly ILogger<InMemoryCacheService> _logger;
 
     public InMemoryCacheService(ILogger<InMemoryCacheService> logger)
@@ -95,6 +98,56 @@ public class InMemoryCacheService : ICacheService
         foreach (var key in keys)
             _store.TryRemove(key, out _);
         return Task.CompletedTask;
+    }
+
+    public async Task<string> GetOrSetAsync(string key, Func<Task<string>> factory, int expireSeconds = 300)
+    {
+        var cached = await GetAsync(key);
+        if (!string.IsNullOrEmpty(cached))
+            return cached;
+
+        var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync();
+        try
+        {
+            cached = await GetAsync(key);
+            if (!string.IsNullOrEmpty(cached))
+                return cached;
+
+            var value = await factory();
+            if (!string.IsNullOrEmpty(value))
+                await SetAsync(key, value, expireSeconds);
+            return value;
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
+    public async Task<T> GetOrSetAsync<T>(string key, Func<Task<T>> factory, int expireSeconds = 300) where T : class
+    {
+        var cached = await GetAsync<T>(key);
+        if (cached != null)
+            return cached;
+
+        var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync();
+        try
+        {
+            cached = await GetAsync<T>(key);
+            if (cached != null)
+                return cached;
+
+            var value = await factory();
+            if (value != null)
+                await SetAsync(key, value, expireSeconds);
+            return value;
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private class CacheEntry

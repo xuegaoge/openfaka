@@ -25,18 +25,17 @@ public class CategoryController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetCategories()
     {
-        var cached = await _cache.GetAsync(CACHE_KEY);
-        if (!string.IsNullOrEmpty(cached))
-            return Content(cached, "application/json");
+        var json = await _cache.GetOrSetAsync(CACHE_KEY, async () =>
+        {
+            var categories = await _db.Select<FakaCategory>()
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.SortOrder)
+                .ToListAsync();
 
-        var categories = await _db.Select<FakaCategory>()
-            .Where(c => !c.IsDeleted)
-            .OrderBy(c => c.SortOrder)
-            .ToListAsync();
+            var result = categories.Select(c => new { id = c.Id, name = c.Name, sort_order = c.SortOrder });
+            return JsonSerializer.Serialize(result);
+        }, CACHE_DURATION);
 
-        var result = categories.Select(c => new { id = c.Id, name = c.Name, sort_order = c.SortOrder });
-        var json = JsonSerializer.Serialize(result);
-        await _cache.SetAsync(CACHE_KEY, json, CACHE_DURATION);
-        return Content(json, "application/json");
+        return Content(json ?? "[]", "application/json");
     }
 }
