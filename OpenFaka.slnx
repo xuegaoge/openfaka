@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/libs/" />
+  <Folder Name="/libs/lin-cms-dotnetcore/" />
+  <Folder Name="/libs/lin-cms-dotnetcore/src/">
+    <Project Path="libs/lin-cms-dotnetcore/src/LinCms.Application.Contracts/LinCms.Application.Contracts.csproj" />
+    <Project Path="libs/lin-cms-dotnetcore/src/LinCms.Application/LinCms.Application.csproj" />
+    <Project Path="libs/lin-cms-dotnetcore/src/LinCms.Core/LinCms.Core.csproj" />
+    <Project Path="libs/lin-cms-dotnetcore/src/LinCms.Infrastructure/LinCms.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/OpenFaka.Application/OpenFaka.Application.csproj" />
+    <Project Path="src/OpenFaka.Core/OpenFaka.Core.csproj" />
+    <Project Path="src/OpenFaka.Infrastructure/OpenFaka.Infrastructure.csproj" />
+    <Project Path="src/OpenFaka.Web/OpenFaka.Web.csproj" />
+  </Folder>
+</Solution>

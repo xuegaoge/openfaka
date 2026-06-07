@@ -1,0 +1,64 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# SQLite
+openfaka.db
+openfaka.db-shm
+openfaka.db-wal
+
+# JWT secret (auto-generated)
+.jwt-secret
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+._*
+
+# Docker
+docker-compose.override.yml
+
+# Secrets
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+!appsettings.template.json
+
+# Project artifacts
+.claude/
+.omc/
+.plan/
+参考项目/
+.tmp/
+_*settings*.json
+settings_staging.json
+*.log
+verify.sh
+run_verify.sh
+test_webhook.sh
+VERIFICATION_REPORT.md
+AGENTS.md
+CLAUDE.md
+迁移经验总结.md
+.claude_settings.json

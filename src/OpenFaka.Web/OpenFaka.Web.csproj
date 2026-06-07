@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/*._*</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\libs\lin-cms-dotnetcore\src\LinCms.Core\LinCms.Core.csproj" />
+    <ProjectReference Include="..\..\libs\lin-cms-dotnetcore\src\LinCms.Application\LinCms.Application.csproj" />
+    <ProjectReference Include="..\..\libs\lin-cms-dotnetcore\src\LinCms.Application.Contracts\LinCms.Application.Contracts.csproj" />
+    <ProjectReference Include="..\..\libs\lin-cms-dotnetcore\src\LinCms.Infrastructure\LinCms.Infrastructure.csproj" />
+    <ProjectReference Include="..\OpenFaka.Core\OpenFaka.Core.csproj" />
+    <ProjectReference Include="..\OpenFaka.Application\OpenFaka.Application.csproj" />
+    <ProjectReference Include="..\OpenFaka.Infrastructure\OpenFaka.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

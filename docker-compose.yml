@@ -1,0 +1,80 @@
+services:
+  # ============ OpenFaka 应用 ============
+  openfaka:
+    build: .
+    container_name: openfaka
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - openfaka-data:/app/data
+      - openfaka-uploads:/app/wwwroot/uploads
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/openfaka.db
+      - Jwt__Issuer=OpenFaka
+      - Jwt__Audience=OpenFaka
+      - Cors__Origins__0=http://localhost:3000
+      - Cors__Origins__1=http://localhost:5000
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - openfaka-net
+
+  # ============ Next.js 前端（开发/独立模式） ============
+  # 如需单独运行前端（不使用内嵌到 .NET 的方式），取消下面注释
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/web/Dockerfile
+  #   container_name: openfaka-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - BACKEND_URL=http://openfaka:5000
+  #   depends_on:
+  #     - openfaka
+  #   networks:
+  #     - openfaka-net
+
+  # ============ Redis（缓存 + 限流） ============
+  redis:
+    image: redis:7-alpine
+    container_name: openfaka-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - openfaka-net
+
+  # ============ Nginx 反向代理 ============
+  nginx:
+    image: nginx:alpine
+    container_name: openfaka-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - openfaka
+    networks:
+      - openfaka-net
+
+volumes:
+  openfaka-data:
+  openfaka-uploads:
+  redis-data:
+
+networks:
+  openfaka-net:
+    driver: bridge
